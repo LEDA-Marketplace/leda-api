@@ -1,4 +1,4 @@
-import { Item } from '../../items/entities/item.entity';
+import { Item } from 'src/config/entities.config';
 
 export const getAverage = (items: Item[]) => {
   const itemsTotalLikes = items.reduce((prev, actual) => prev + actual.likes, 0);

@@ -7,8 +7,8 @@ import { BusinessException } from '../../common/exceptions/exception-types';
 import { isValidExtension, isValidSize } from '../../common/utils/image-utils';
 import { BusinessErrors } from '../../common/constants';
 import { PinataResponse } from '../../common/types/pinata-response';
-import { IpfsAttribute } from '../../common/types/ipfs-attribute';
-import { IpfsTrait } from '../../common/types/ipfs-trait';
+import { IpfsAttribute } from 'src/common/types/ipfs-attribute';
+import { IpfsTrait } from 'src/common/types/ipfs-trait';
 import { ReservedAttribute } from '../enums/reserved-attribute.enum';
 
 @Injectable()

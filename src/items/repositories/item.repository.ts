@@ -1,6 +1,7 @@
 import { Injectable } from '@nestjs/common';
-import { PaginationDto } from '../../common/dto/pagination.dto';
+import { formatImageUrl } from '../../common/utils/image-utils';
 import {
+  Between,
   DataSource,
   FindManyOptions,
   FindOptionsWhere,
@@ -11,7 +12,6 @@ import {
 } from 'typeorm';
 import { Account } from '../../account/entities/account.entity';
 import { Collection } from '../../collections/entities/collection.entity';
-import { formatImageUrl } from '../../common/utils/image-utils';
 import { DraftItemRequestDto } from '../dto/draft-item-request.dto';
 import { ItemRequestDto } from '../dto/item-request.dto';
 import { LazyItemRequestDto } from '../dto/lazy-item-request.dto';
@@ -144,119 +144,20 @@ export class ItemRepository extends Repository<Item> {
       .getMany();
   }
 
-  async findCreatedByAccount(accountId: string, paginationDto: PaginationDto) {
-    const { limit, skip } = paginationDto;
-    const [items, count] = await this.findAndCount({
-      relations: {
-        image: true,
-        owner: true,
-        author: true,
-        tags: true,
-        collection: true,
-      },
-      select: {
-        image: { url: true },
-        owner: { accountId: true, address: true },
-        author: { accountId: true, address: true },
-        tags: { name: true, id: true },
-        collection: { id: true },
-      },
-      where: {
-        status: Not(ItemStatus.Draft),
-        author: new Account(accountId),
-      },
-      order: { createdAt: 'DESC' },
-      take: limit,
-      skip: skip,
-    });
-
-    return {
-      count,
-      items,
-    };
+  async findByAccount(accountId: string): Promise<Item[]> {
+    return this.getItemQueryBuilder()
+      .where('item.status != :status', { status: ItemStatus.Draft })
+      .andWhere('(item.ownerId = :accountId OR item.authorId = :accountId)', { accountId })
+      .orderBy('item.createdAt', 'DESC')
+      .getMany();
   }
 
-  async findOwnedByAccount(accountId: string, paginationDto: PaginationDto) {
-    const { limit, skip } = paginationDto;
-
-    const [items, count] = await this.findAndCount({
-      relations: {
-        image: true,
-        owner: true,
-        author: true,
-        tags: true,
-        collection: true,
-      },
-      select: {
-        image: { url: true },
-        owner: { accountId: true, address: true },
-        author: { accountId: true, address: true },
-        tags: { name: true, id: true },
-        collection: { id: true },
-      },
-      where: {
-        status: Not(ItemStatus.Draft),
-        author: new Account(accountId),
-      },
-      order: { createdAt: 'DESC' },
-      take: limit,
-      skip: skip,
-    });
-
-    return {
-      count,
-      items,
-    };
-  }
-
-  async findOnSaleByAccount(accountId: string, paginationDto: PaginationDto) {
-    const { limit, skip } = paginationDto;
-
-    const [items, count] = await this.findAndCount({
-      relations: {
-        image: true,
-        owner: true,
-        author: true,
-        tags: true,
-        collection: true,
-      },
-      select: {
-        image: { url: true },
-        owner: { accountId: true, address: true },
-        author: { accountId: true, address: true },
-        tags: { name: true, id: true },
-        collection: { id: true },
-      },
-      where: [
-        {
-          author: new Account(accountId),
-          status: ItemStatus.NotListed,
-        },
-        {
-          owner: new Account(accountId),
-          status: ItemStatus.NotListed,
-        },
-      ],
-      order: { createdAt: 'DESC' },
-      take: limit,
-      skip: skip,
-    });
-
-    return {
-      count,
-      items,
-    };
-  }
-
-  async findLikedByAccount(accountId: string, paginationDto: PaginationDto): Promise<Item[]> {
-    const { limit, skip } = paginationDto;
+  async findLikedByAccount(accountId: string): Promise<Item[]> {
     return this.getItemQueryBuilder()
       .innerJoin('item.itemLikes', 'itemLikes')
       .where('itemLikes.accountId = :accountId', { accountId })
       .andWhere('item.status != :status', { status: ItemStatus.Draft })
       .orderBy('item.createdAt', 'DESC')
-      .limit(limit)
-      .skip(skip)
       .getMany();
   }
 

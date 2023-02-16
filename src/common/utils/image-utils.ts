@@ -14,5 +14,5 @@ export const isValidSize = (size: number) => {
 export const formatImageUrl = (url: string) => {
   const search = 'ipfs/';
   const index = url.indexOf(search);
-  return index > 0 ? url.substring(index + search.length, url.length) : url;
+  return url.substring(index + search.length, url.length);
 };

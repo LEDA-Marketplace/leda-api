@@ -1,5 +1,5 @@
 import { IsArray, IsNotEmpty, IsNumber, Max, MaxLength, Min, MinLength } from 'class-validator';
-import { ImageRequestDto } from '../../items/dto/image-request.dto';
+import { ImageRequestDto } from 'src/items/dto/image-request.dto';
 import { Collection } from '../entities/collection.entity';
 
 export class CreateCollectionDto {

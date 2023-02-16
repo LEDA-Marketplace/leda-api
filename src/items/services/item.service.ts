@@ -1,8 +1,8 @@
 import { Injectable } from '@nestjs/common';
-import { CreateCollectionDto } from '../../collections/dto/create-collection.dto';
+import { CreateCollectionDto } from 'src/collections/dto/create-collection.dto';
+import { Collection } from 'src/config/entities.config';
 import { Account } from '../../account/entities/account.entity';
 import { AccountRepository } from '../../account/repositories/account.repository';
-import { Collection } from '../../collections/entities/collection.entity';
 import { CollectionRepository } from '../../collections/repositories/collection.repository';
 import { BusinessErrors } from '../../common/constants';
 import { BusinessException, NotFoundException } from '../../common/exceptions/exception-types';
@@ -54,6 +54,22 @@ export class ItemService {
     if (!item) throw new NotFoundException(`The item with id ${itemId} does not exist`);
 
     return item;
+  }
+
+  async findByAddress(address: string): Promise<Item[]> {
+    const account = await this.accountRepository.findByAddress(address);
+
+    if (!account) throw new BusinessException(BusinessErrors.address_not_associated);
+
+    return this.itemRepository.findByAccount(account.accountId);
+  }
+
+  async findLikedByAddress(address: string): Promise<Item[]> {
+    const account = await this.accountRepository.findByAddress(address);
+
+    if (!account) throw new BusinessException(BusinessErrors.address_not_associated);
+
+    return this.itemRepository.findLikedByAccount(account.accountId);
   }
 
   async findPriceRange(): Promise<PriceRangeDto> {
@@ -186,7 +202,7 @@ export class ItemService {
   }
 
   async like(itemId: string, address: string): Promise<Item> {
-    const itemToLike = await this.itemRepository.findById(itemId);
+    const itemToLike = await this.itemRepository.findActiveById(itemId);
     const history = await this.historyRepository.findAllByItemId(itemId);
 
     if (!itemToLike) throw new NotFoundException(`The item with id ${itemId} does not exist`);

@@ -46,7 +46,7 @@ export class AuthService {
 
       this.cacheManager.del(address);
 
-      return { access_token, account };
+      return { access_token };
     }
 
     throw new UnauthorizedException();

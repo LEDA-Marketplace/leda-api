@@ -11,7 +11,7 @@ export function getConfig() {
     username: process.env.DB_USERNAME,
     password: process.env.DB_PASSWORD,
     database: process.env.DB_NAME,
-    migrations: ['src/migrations/*{.js,.ts}'],
+    migrations: ['src/migrations/*{.ts,.js}'],
     entities: [__dirname + '/entities.config.ts'],
     extra: {
       ssl: {

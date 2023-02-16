@@ -7,7 +7,6 @@ import { Collection, Image } from '../../config/entities.config';
 import { ItemService } from '../../items/services/item.service';
 import { Voucher } from '../../items/entities/voucher.entity';
 import { CollectionService } from '../../collections/services/collection.service';
-import { AccountService } from '../services/account.service';
 
 const itemServiceMock = () => ({
   findByAddress: jest.fn(),
@@ -19,14 +18,9 @@ const collectionServiceMock = () => ({
   findByOwner: jest.fn(),
 });
 
-const accountServiceMock = () => ({
-  findCreatedItemsByAddress: jest.fn(),
-  changeInformation: jest.fn(),
-});
-
 describe('AccountController', () => {
   let controller: AccountsController;
-  let accountService;
+  let itemService;
 
   beforeEach(async () => {
     const module = await Test.createTestingModule({
@@ -34,12 +28,11 @@ describe('AccountController', () => {
       providers: [
         { provide: ItemService, useFactory: itemServiceMock },
         { provide: CollectionService, useFactory: collectionServiceMock },
-        { provide: AccountService, useFactory: accountServiceMock },
       ],
     }).compile();
 
     controller = await module.get(AccountsController);
-    accountService = await module.get(AccountService);
+    itemService = await module.get(ItemService);
   });
 
   describe('When calling findItems function', () => {
@@ -75,9 +68,9 @@ describe('AccountController', () => {
         ];
 
         const mockData = expected.map((prop) => ({ ...prop }));
-        accountService.findCreatedItemsByAddress.mockResolvedValue(mockData);
+        itemService.findByAddress.mockResolvedValue(mockData);
 
-        const actual = await controller.findCreatedItems('123', { limit: 15, page: 1 });
+        const actual = await controller.findItems('123');
 
         expect(actual[0].itemId).toEqual(expected[0].itemId);
       });

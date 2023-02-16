@@ -1,6 +1,6 @@
 import { Injectable } from '@nestjs/common';
-import { BusinessErrors } from '../../common/constants';
-import { BusinessException } from '../../common/exceptions/exception-types';
+import { BusinessErrors } from 'src/common/constants';
+import { BusinessException } from 'src/common/exceptions/exception-types';
 import { VoucherRepository } from '../repositories/voucher.repository';
 
 @Injectable()

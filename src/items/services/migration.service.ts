@@ -1,30 +1,36 @@
 import { HttpService } from '@nestjs/axios';
 import { Injectable } from '@nestjs/common';
-import { ethers } from 'ethers';
 import { writeFileSync } from 'fs';
 import Jimp from 'jimp';
 import { join } from 'path';
 import { firstValueFrom } from 'rxjs';
-import { Collection } from 'src/collections/entities/collection.entity';
-import { BusinessException } from 'src/common/exceptions/exception-types';
-import { items } from 'src/jup-apes-migration/jup';
+import { appConfig } from '../../config/app.config';
 import { CreateCollectionDto } from '../../collections/dto/create-collection.dto';
 import {
+  Domain,
   IpfsObjectResponse,
   LogType,
   MigrationDraftItem,
   MigrationItem,
+  types,
+  Voucher,
 } from '../../common/types/migration-types';
-import { appConfig } from '../../config/app.config';
 import { DraftItemRequestDto } from '../dto/draft-item-request.dto';
 import { ItemPropertyDto } from '../dto/item-property.dto';
 import { LazyItemRequestDto } from '../dto/lazy-item-request.dto';
-import { MigrationRequestDto } from '../dto/migration-request.dto';
 import { Item } from '../entities/item.entity';
-import { LazyProcessType } from '../enums/lazy-process-type.enum';
-import { ItemRepository } from '../repositories/item.repository';
 import { ItemService } from './item.service';
 import { PinataService } from './pinata.service';
+import { ethers } from 'ethers';
+import { Account } from 'src/account/entities/account.entity';
+import { LazyProcessType } from '../enums/lazy-process-type.enum';
+import { VoucherRepository } from '../repositories/voucher.repository';
+import { ItemRepository } from '../repositories/item.repository';
+import { Collection } from 'src/collections/entities/collection.entity';
+import { formatImageUrl } from 'src/common/utils/image-utils';
+import { MigrationRequestDto } from '../dto/migration-request.dto';
+import { BusinessException } from 'src/common/exceptions/exception-types';
+import { items } from 'src/jup-apes-migration/jup';
 
 @Injectable()
 export class MigrationService {
@@ -32,13 +38,17 @@ export class MigrationService {
   ACCOUNT_ID = process.env.MIGRATION_ACCOUNT_ID;
   JUP_APE_COLLECTION_ID = process.env.MIGRATION_JUP_APE_COLLECTION_ID;
   COLLECTION_ADDRESS = process.env.MIGRATION_COLLECTION_ADDRESS;
+  PRIVATE_KEY = process.env.MIGRATION_PRIVATE_KEY;
   CHAIN_ID = +process.env.MIGRATION_CHAIN_ID;
+  SIGNING_DOMAIN_NAME = 'LazyNFT-Voucher';
+  SIGNING_DOMAIN_VERSION = '1';
   ROYALTIES = 5; // TODO: shouldn't be fixed
 
   constructor(
     private pinataService: PinataService,
     private itemService: ItemService,
     private httpService: HttpService,
+    private voucherRepository: VoucherRepository,
     private itemRepository: ItemRepository
   ) {}
 
@@ -155,25 +165,21 @@ Exception: ${errorInfo}
       const { IpfsHash: cid } = await this.storeIpfsObject(item, draft.itemId);
       const url = await this.getIpfsMetadata(item.name, cid);
 
-      // Activate Draft item
+      // Generate voucher
       const wei = ethers.utils.parseUnits(String(price), 'ether').toString();
-      const activated = await this.itemRepository.activateLazyItem(
-        draft,
-        {
-          minPrice: wei,
-          price,
-          royalties: this.ROYALTIES * 10,
-          signature: '',
-          image: { url, cid: cid },
-          lazyProcessType: LazyProcessType.Activation,
-          tokenId: name,
-          stakingRewards: rewards,
-        } as LazyItemRequestDto,
-        {
-          id: this.JUP_APE_COLLECTION_ID,
-        } as Collection
-      );
+      const voucher = await this.createVoucher(cid, wei, rewards, name, this.ROYALTIES * 10);
 
+      // Activate Draft item and store voucher
+      const activated = await this.activateItem(draft, {
+        minPrice: voucher.minPrice.toString(),
+        price,
+        royalties: voucher.royalties,
+        signature: voucher.signature,
+        image: { url, cid: cid },
+        lazyProcessType: LazyProcessType.Activation,
+        tokenId: name,
+        stakingRewards: rewards,
+      } as LazyItemRequestDto);
       console.log({ activated });
       return activated;
     } catch (error) {
@@ -255,5 +261,43 @@ Exception: ${errorInfo}
       this.httpService.get<IpfsObjectResponse>(`${pinataGatewayUrl}/${cid}`)
     );
     return data.image;
+  }
+
+  async activateItem(item: Item, lazyItemRequest: LazyItemRequestDto) {
+    await this.voucherRepository.createVoucher(item, lazyItemRequest, {
+      accountId: this.ACCOUNT_ID,
+      address: this.ADDRESS,
+    } as Account);
+    return this.itemRepository.activateLazyItem(item, lazyItemRequest, {
+      id: this.JUP_APE_COLLECTION_ID,
+    } as Collection);
+  }
+
+  async createVoucher(
+    uri: string,
+    minPrice: string,
+    stakingRewards: number,
+    tokenId: number,
+    royalties: number
+  ): Promise<Voucher> {
+    try {
+      const signer = new ethers.Wallet(this.PRIVATE_KEY);
+      const domain = await this.signingDomain();
+      const voucher = { tokenId, minPrice, uri, royalties, stakingRewards };
+      const signature = await signer._signTypedData(domain, types, voucher);
+
+      return { ...voucher, signature } as Voucher;
+    } catch (err) {
+      console.log('createVoucher|exception', err);
+    }
+  }
+
+  private async signingDomain(): Promise<Domain> {
+    return {
+      name: this.SIGNING_DOMAIN_NAME,
+      version: this.SIGNING_DOMAIN_VERSION,
+      verifyingContract: this.COLLECTION_ADDRESS,
+      chainId: +this.CHAIN_ID,
+    };
   }
 }

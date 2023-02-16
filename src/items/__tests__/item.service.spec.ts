@@ -183,6 +183,41 @@ describe('ItemService', () => {
     });
   });
 
+  describe('When findByAddress function is called', () => {
+    describe('and the address exist', () => {
+      it('should return the expected item', async () => {
+        const account = { accountId: '456' } as Account;
+        const expected = items;
+
+        accountRepository.findByAddress.mockResolvedValue({ ...account });
+
+        const mockedData = expected.map((prop) => ({ ...prop }));
+        itemRepository.findByAccount.mockResolvedValue(mockedData);
+
+        const actual = await service.findByAddress('123');
+
+        expect(actual).toEqual(expected);
+      });
+    });
+
+    describe('and the address does not exist', () => {
+      it('should throw a BusinessException with expected message', async () => {
+        const unexistingAddress = '123';
+
+        accountRepository.findByAddress.mockResolvedValue(null);
+
+        const exception = () => service.findByAddress(unexistingAddress);
+
+        await expect(exception).rejects.toThrow(BusinessException);
+        await expect(exception).rejects.toEqual(
+          new BusinessException(BusinessErrors.address_not_associated)
+        );
+
+        expect(itemRepository.findByAccount).not.toHaveBeenCalled();
+      });
+    });
+  });
+
   describe('When findPagination function is called', () => {
     it('should return a pagination object ', async () => {
       const expected = {
@@ -244,6 +279,23 @@ describe('ItemService', () => {
         } as DraftItemRequestDto);
 
         expect(actual).toEqual(expected);
+      });
+    });
+
+    describe('and the address does not exist', () => {
+      it('should throw a BusinessException with expected message', async () => {
+        const unexistingAddress = '123';
+
+        accountRepository.findByAddress.mockResolvedValue(null);
+
+        const exception = () => service.findByAddress(unexistingAddress);
+
+        await expect(exception).rejects.toThrow(BusinessException);
+        await expect(exception).rejects.toEqual(
+          new BusinessException(BusinessErrors.file_extension_not_supported)
+        );
+
+        expect(itemRepository.createItem).not.toHaveBeenCalled();
       });
     });
   });

@@ -16,7 +16,6 @@ import { NewestItemsRequestDto } from '../dto/newest-items-request.dto';
 import { Voucher } from '../entities/voucher.entity';
 import { TransferDto } from '../dto/transfer-request.dto';
 import { LazyItemRequestDto } from '../dto/lazy-item-request.dto';
-import { PaginationDto } from '../../common/dto/pagination.dto';
 
 @Controller('items')
 export class ItemsController {
@@ -41,9 +40,9 @@ export class ItemsController {
   }
 
   @Public()
-  @Get('/history/paginate')
-  findAllHistory(@Query() paginationDto: PaginationDto) {
-    return this.historyService.pagination(paginationDto);
+  @Get('/history')
+  findAllHistory(): Promise<History[]> {
+    return this.historyService.findAll();
   }
 
   @Public()
